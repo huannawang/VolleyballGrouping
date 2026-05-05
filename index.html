@@ -26,7 +26,7 @@
     #controls button { margin: 0; font-size: 15px; padding: 10px; width: 45%; }
 
     /* 撲克牌 */
-    .card { width: 55px; height: 80px; perspective: 1000px; }
+    .card { width: 80px; height: 115px; perspective: 1000px; }
     .card-inner { width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; position: relative; }
     .card.flipped .card-inner { transform: rotateY(180deg); }
     .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid #ddd; }
@@ -42,8 +42,8 @@
     
     /* 牌面：翻開後才看得到 */
     .card-back { background-color: white; transform: rotateY(180deg); }
-    .suit { font-size: 28px; line-height: 1; }
-    .number { font-size: 18px; font-weight: bold; margin-top: 4px; }
+    .suit { font-size: 34px; line-height: 1; }
+    .number { font-size: 24px; font-weight: bold; margin-top: 4px; }
   </style>
 </head>
 <body>
