@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>排球分隊抽牌系統 V2</title>
+  <style>
+    * { box-sizing: border-box; -webkit-user-select: none; user-select: none; font-family: -apple-system, sans-serif; }
+    body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #f0f0f0; }
+
+    /* 設定頁面 */
+    #setup-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #fff; padding: 20px; }
+    .input-group { margin: 12px 0; font-size: 18px; width: 100%; max-width: 300px; display: flex; justify-content: space-between; align-items: center; }
+    .input-group select, .input-group input { width: 100px; font-size: 18px; text-align: center; padding: 8px; border: 1px solid #ccc; border-radius: 8px; }
+    button { padding: 14px 28px; font-size: 18px; border: none; border-radius: 12px; background-color: #007aff; color: white; cursor: pointer; margin-top: 20px; width: 100%; max-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    button:active { transform: scale(0.98); background-color: #005bb5; }
+
+    /* 遊戲頁面 */
+    #game-screen { display: none; flex-direction: column; height: 100vh; }
+    .deck-area { flex: 1; padding: 15px 10px; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 8px; overflow-y: auto; }
+    #men-area { background-color: #e3f2fd; border-bottom: 2px solid #fff; }
+    #women-area { background-color: #fce4ec; }
+
+    /* 控制列 */
+    #controls { display: flex; justify-content: space-around; padding: 15px; background-color: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+    #controls button { margin: 0; font-size: 15px; padding: 10px; width: 45%; }
+
+    /* 撲克牌 */
+    .card { width: 55px; height: 80px; perspective: 1000px; }
+    .card-inner { width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; position: relative; }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid #ddd; }
+    
+    /* 牌背：看不到花色數字 */
+    .card-front { 
+      background-color: #2c3e50;
+      background-image: radial-gradient(circle, #34495e 10%, transparent 10.5%), radial-gradient(circle, #34495e 10%, transparent 10.5%);
+      background-size: 10px 10px;
+      background-position: 0 0, 5px 5px;
+      color: rgba(255,255,255,0.3); font-size: 24px; font-weight: bold; 
+    }
+    
+    /* 牌面：翻開後才看得到 */
+    .card-back { background-color: white; transform: rotateY(180deg); }
+    .suit { font-size: 28px; line-height: 1; }
+    .number { font-size: 18px; font-weight: bold; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <div id="setup-screen">
+    <h2 style="margin-bottom: 30px;">排球分隊抽牌</h2>
+    <div class="input-group">
+      <label>總人數：</label>
+      <select id="total-select" onchange="initGenderCounts()">
+        <option value="24">24 人</option>
+        <option value="18" selected>18 人</option>
+        <option value="12">12 人</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>男生人數：</label>
+      <input type="number" id="men-input" oninput="syncGender('men')">
+    </div>
+    <div class="input-group">
+      <label>女生人數：</label>
+      <input type="number" id="women-input" oninput="syncGender('women')">
+    </div>
+    <button onclick="startGame()">確認並開始抽牌</button>
+  </div>
+
+  <div id="game-screen">
+    <div id="men-area" class="deck-area"></div>
+    <div id="women-area" class="deck-area"></div>
+    <div id="controls">
+      <button onclick="resetToSetup()" style="background-color: #6c757d;">重新輸入人數</button>
+      <button onclick="reshuffle()" style="background-color: #28a745;">重新洗牌</button>
+    </div>
+  </div>
+
+  <script>
+    const SUITS = [
+      { icon: '♥', color: '#e44141' }, // 紅心
+      { icon: '♦', color: '#e44141' }, // 方塊
+      { icon: '♣', color: '#222' }     // 梅花
+    ];
+
+    let config = { total: 18, men: 9, women: 9 };
+
+    // 初始化與連動邏輯
+    function initGenderCounts() {
+      const total = parseInt(document.getElementById('total-select').value);
+      const half = total / 2;
+      document.getElementById('men-input').value = half;
+      document.getElementById('women-input').value = half;
+    }
+
+    function syncGender(changed) {
+      const total = parseInt(document.getElementById('total-select').value);
+      let mInput = document.getElementById('men-input');
+      let wInput = document.getElementById('women-input');
+      
+      if (changed === 'men') {
+        let val = parseInt(mInput.value) || 0;
+        if (val > total) val = total;
+        mInput.value = val;
+        wInput.value = total - val;
+      } else {
+        let val = parseInt(wInput.value) || 0;
+        if (val > total) val = total;
+        wInput.value = val;
+        mInput.value = total - val;
+      }
+    }
+
+    function startGame() {
+      config.total = parseInt(document.getElementById('total-select').value);
+      config.men = parseInt(document.getElementById('men-input').value);
+      config.women = parseInt(document.getElementById('women-input').value);
+
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('game-screen').style.display = 'flex';
+      generateCards();
+    }
+
+    function generateCards() {
+      const perTeam = config.total / 3;
+      let menCards = [];
+      let womenCards = [];
+
+      // 分配男生到三隊的數量
+      let baseMen = Math.floor(config.men / 3);
+      let remainder = config.men % 3;
+      let menPerSuit = [baseMen, baseMen, baseMen];
+      let indices = [0, 1, 2].sort(() => Math.random() - 0.5);
+      for(let i=0; i<remainder; i++) menPerSuit[indices[i]]++;
+
+      // 產生各隊牌組
+      for (let i = 0; i < 3; i++) {
+        const suitMenCount = menPerSuit[i];
+        const suitWomenCount = perTeam - suitMenCount;
+        const suit = SUITS[i];
+
+        for (let j = 1; j <= suitMenCount; j++) {
+          menCards.push({ suit: suit.icon, color: suit.color, num: j });
+        }
+        for (let j = 1; j <= suitWomenCount; j++) {
+          womenCards.push({ suit: suit.icon, color: suit.color, num: suitMenCount + j });
+        }
+      }
+
+      render(menCards.sort(() => Math.random() - 0.5), 'men-area');
+      render(womenCards.sort(() => Math.random() - 0.5), 'women-area');
+    }
+
+    function render(cards, areaId) {
+      const area = document.getElementById(areaId);
+      area.innerHTML = '';
+      cards.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div class="card-inner">
+            <div class="card-face card-front">V</div>
+            <div class="card-face card-back" style="color:${c.color}">
+              <div class="suit">${c.suit}</div>
+              <div class="number">${c.num}</div>
+            </div>
+          </div>`;
+        div.onclick = function() { this.classList.toggle('flipped'); };
+        area.appendChild(div);
+      });
+    }
+
+    function resetToSetup() {
+      document.getElementById('setup-screen').style.display = 'flex';
+      document.getElementById('game-screen').style.display = 'none';
+    }
+
+    function reshuffle() { generateCards(); }
+
+    // 初始執行一次
+    initGenderCounts();
+  </script>
+</body>
+</html>
