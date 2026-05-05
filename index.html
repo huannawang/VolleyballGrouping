@@ -53,9 +53,9 @@
     <div class="input-group">
       <label>總人數：</label>
       <select id="total-select" onchange="initGenderCounts()">
-        <option value="24">24 人</option>
-        <option value="18" selected>18 人</option>
-        <option value="12">12 人</option>
+        <option value="24">24 人 (4隊)</option>
+        <option value="18" selected>18 人 (3隊)</option>
+        <option value="12">12 人 (2隊)</option>
       </select>
     </div>
     <div class="input-group">
@@ -79,10 +79,12 @@
   </div>
 
   <script>
-    const SUITS = [
+    // 準備4種花色，根據隊伍數取用
+    const ALL_SUITS = [
+      { icon: '♠', color: '#222' },     // 黑桃
       { icon: '♥', color: '#e44141' }, // 紅心
       { icon: '♦', color: '#e44141' }, // 方塊
-      { icon: '♣', color: '#222' }     // 梅花
+      { icon: '♣', color: '#222' }      // 梅花
     ];
 
     let config = { total: 18, men: 9, women: 9 };
@@ -124,31 +126,43 @@
     }
 
     function generateCards() {
-      const perTeam = config.total / 3;
+      // 隊伍數量 = 總人數 / 6 (12人->2隊, 18人->3隊, 24人->4隊)
+      const teamsCount = config.total / 6; 
+      
+      // 根據隊伍數量取用對應的花色數量
+      const activeSuits = ALL_SUITS.slice(0, teamsCount);
+
       let menCards = [];
       let womenCards = [];
 
-      // 分配男生到三隊的數量
-      let baseMen = Math.floor(config.men / 3);
-      let remainder = config.men % 3;
-      let menPerSuit = [baseMen, baseMen, baseMen];
-      let indices = [0, 1, 2].sort(() => Math.random() - 0.5);
-      for(let i=0; i<remainder; i++) menPerSuit[indices[i]]++;
+      // 分配男生到各隊的數量 (盡量平分)
+      let baseMen = Math.floor(config.men / teamsCount);
+      let remainder = config.men % teamsCount;
+      let menPerSuit = new Array(teamsCount).fill(baseMen);
+      
+      // 將無法平分的餘數隨機分配給各隊 (確保公平)
+      let indices = Array.from({ length: teamsCount }, (_, i) => i).sort(() => Math.random() - 0.5);
+      for(let i = 0; i < remainder; i++) {
+        menPerSuit[indices[i]]++;
+      }
 
-      // 產生各隊牌組
-      for (let i = 0; i < 3; i++) {
+      // 產生各隊(各花色)牌組
+      for (let i = 0; i < teamsCount; i++) {
         const suitMenCount = menPerSuit[i];
-        const suitWomenCount = perTeam - suitMenCount;
-        const suit = SUITS[i];
+        const suitWomenCount = 6 - suitMenCount; // 每隊固定6人，剩下的就是女生
+        const suit = activeSuits[i];
 
+        // 產生男生牌 (1 ~ 男生人數)
         for (let j = 1; j <= suitMenCount; j++) {
           menCards.push({ suit: suit.icon, color: suit.color, num: j });
         }
+        // 產生女生牌 (男生人數+1 ~ 6)
         for (let j = 1; j <= suitWomenCount; j++) {
           womenCards.push({ suit: suit.icon, color: suit.color, num: suitMenCount + j });
         }
       }
 
+      // 洗牌並渲染到畫面
       render(menCards.sort(() => Math.random() - 0.5), 'men-area');
       render(womenCards.sort(() => Math.random() - 0.5), 'women-area');
     }
@@ -167,6 +181,7 @@
               <div class="number">${c.num}</div>
             </div>
           </div>`;
+        // 點擊翻轉動畫
         div.onclick = function() { this.classList.toggle('flipped'); };
         area.appendChild(div);
       });
@@ -179,7 +194,7 @@
 
     function reshuffle() { generateCards(); }
 
-    // 初始執行一次
+    // 網頁載入時初始執行一次
     initGenderCounts();
   </script>
 </body>
